@@ -1,11 +1,22 @@
 package hero
 
 type Hero struct {
-	Typ    HeroClass
-	hp     int
-	mp     int
-	attack int
-	defend int
+	Typ           HeroClass
+	hp            int
+	mp            int
+	attack        int
+	defend        int
+	hasMoved      bool
+	hasAttacked   bool
+	movementQuota int
+}
+
+func (h *Hero) AvailableMovement() int {
+	return h.movementQuota
+}
+
+func (h *Hero) AddMovementQuota(moves int) {
+	h.movementQuota = moves
 }
 
 func (h *Hero) Glyph() string {
