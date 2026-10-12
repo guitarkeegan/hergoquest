@@ -8,13 +8,24 @@ type Hero struct {
 	defend int
 }
 
+func (h *Hero) Glyph() string {
+	switch h.Typ {
+	case Barbarian:
+		return "Ba"
+	case Dwarf:
+		return "Dw"
+	default:
+		return "??"
+	}
+}
+
 type HeroClass string
 
 const (
 	Barbarian HeroClass = "barbarian"
-	wizard    HeroClass = "wizard"
-	elf       HeroClass = "elf"
-	dwarf     HeroClass = "dwarf"
+	Wizard    HeroClass = "wizard"
+	Elf       HeroClass = "elf"
+	Dwarf     HeroClass = "dwarf"
 )
 
 type HeroOption func(*Hero)
@@ -35,9 +46,9 @@ func NewDefault(hc HeroClass) *Hero {
 			attack: 3,
 			defend: 2,
 		}
-	case dwarf:
+	case Dwarf:
 		return &Hero{
-			Typ:    dwarf,
+			Typ:    Dwarf,
 			hp:     7,
 			mp:     3,
 			attack: 2,

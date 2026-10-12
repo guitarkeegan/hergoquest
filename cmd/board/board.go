@@ -1,69 +1,65 @@
 package board
 
-import "strings"
-
-type SquareState int
-
 type Coord struct {
 	Row, Col int
 }
 
+type Piece int
+
 const (
-	empty SquareState = iota
-	occupiedBarbarian
-	trap
-	furnature
-	stares
-	chest
+	vacant Piece = iota
+	closedDoor
+	openDoor
 )
 
-var squareStateView = map[SquareState]string{
-	empty:             "[]",
-	occupiedBarbarian: "Ba",
-	trap:              "XX",
-	furnature:         "MM",
-	stares:            "Ss",
-	chest:             "CH",
+func (p Piece) Glyph() string {
+	switch p {
+	case vacant:
+		return "[]"
+	case closedDoor:
+		return "--"
+	case openDoor:
+		return "()"
+	default:
+		return "??"
+	}
 }
 
-type Board [][]SquareState
+type Occupier interface {
+	Glyph() string
+}
+
+type Board [][]Occupier
 
 func Make(rows, cols int) Board {
 	board := make(Board, rows)
 	for i := range board {
-		board[i] = make([]SquareState, cols)
+		board[i] = make([]Occupier, cols)
+	}
+	for i := range board {
+		for j := range board[i] {
+			board[i][j] = vacant
+		}
 	}
 	return board
 }
 
 func (b Board) Remove(coord Coord) Board {
-	b[coord.Row][coord.Col] = empty
+	b[coord.Row][coord.Col] = vacant
 	return b
 }
 
-func (b Board) Place(sqrState SquareState, coord Coord) Board {
-	b[coord.Row][coord.Col] = sqrState
+func (b Board) Place(o Occupier, coord Coord) Board {
+	b[coord.Row][coord.Col] = o
 	return b
 }
 
-func (b Board) Get(coord Coord) SquareState {
+func (b Board) Get(coord Coord) Occupier {
 	return b[coord.Row][coord.Col]
 }
 
 func (b Board) Move(from, to Coord) {
-	squareState := b.Get(from)
+	occupant := b.Get(from)
 	b.Remove(from)
-	b.Place(squareState, to)
-}
-
-func (b Board) View() string {
-	var brd strings.Builder
-	for i := range b {
-		for j := 0; j < len(b[0]); j++ {
-			brd.WriteString(squareStateView[b[i][j]])
-			brd.WriteString(" ")
-		}
-		brd.WriteString("\n")
-	}
-	return brd.String()
+	b.Place(occupant, to)
 }

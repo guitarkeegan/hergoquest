@@ -6,18 +6,10 @@ import (
 	v "github.com/guitarkeegan/musings/cmd/view"
 )
 
-// hero quest
-// intro
-// 10x10 grid
-// 1 hero
-// hero has hp, mp, attack die, defence die
-// can roll to move
-// can move and action once per turn
-// grid has 1 monster
-// monster as set hp, mp, attack, defense
+// how to move a hero from 0,0 to 2,2
 
 func main() {
 	board := b.Make(5, 6)
 	barbarian := h.NewDefault(h.Barbarian)
-	v.Render(board.Place(b.FromHero(barbarian.Typ), b.Coord{Row: 2, Col: 4}))
+	v.Render(board.Place(barbarian, b.Coord{Row: 0, Col: 0}))
 }
