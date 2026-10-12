@@ -36,7 +36,7 @@ type Occupier interface {
 
 type Board [][]Occupier
 
-func Make(rows, cols int) Board {
+func New(rows, cols int) *Board {
 	board := make(Board, rows)
 	for i := range board {
 		board[i] = make([]Occupier, cols)
@@ -46,7 +46,7 @@ func Make(rows, cols int) Board {
 			board[i][j] = vacant
 		}
 	}
-	return board
+	return &board
 }
 
 func (b Board) Remove(coord Coord) Board {
@@ -136,12 +136,12 @@ func (b Board) isValidMove(from, to Coord) bool {
 }
 
 // return whether or not the move was possible
-func (b Board) Move(from, to Coord) bool {
+func (b *Board) Move(from, to Coord) *Board {
 	occupant := b.Get(from)
 	if b.isValidMove(from, to) {
 		b.Remove(from)
 		b.Place(occupant, to)
-		return true
+		return b
 	}
-	return false
+	return b
 }

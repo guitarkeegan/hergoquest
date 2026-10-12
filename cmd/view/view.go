@@ -16,5 +16,8 @@ func Render(board board.Board) {
 		}
 		b.WriteString("\n")
 	}
+
+	b.WriteString("\n")
+
 	fmt.Print(b.String())
 }
