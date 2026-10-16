@@ -5,7 +5,7 @@
 *.so
 *.dylib
 /bin/
-/musings
+/hergoquest
 /go-fun
 
 # Test binaries and coverage

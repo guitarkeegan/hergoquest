@@ -1,3 +1,3 @@
-module github.com/guitarkeegan/musings
+module github.com/guitarkeegan/hergoquest
 
 go 1.26.6
