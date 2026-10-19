@@ -1,14 +1,21 @@
 package hero
 
+import (
+	"log"
+
+	"github.com/guitarkeegan/hergoquest/internal/dice"
+)
+
 type Hero struct {
 	Typ           HeroClass
-	hp            int
+	HP            int
 	mp            int
 	attack        int
 	defend        int
 	hasMoved      bool
 	hasAttacked   bool
 	movementQuota int
+	dice          *dice.Rollist
 }
 
 func (h *Hero) AvailableMovement() int {
@@ -17,6 +24,41 @@ func (h *Hero) AvailableMovement() int {
 
 func (h *Hero) AddMovementQuota(moves int) {
 	h.movementQuota = moves
+}
+
+// TODO:
+// make the monster and isDead the same func if possible
+// so they can't differ
+func (h *Hero) IsDead() bool {
+	return h.HP <= 0
+}
+
+func (h *Hero) TakeDamage(damage int) {
+	h.HP = max(h.HP-damage, 0)
+}
+
+func (h *Hero) RemainingHP() int {
+	return h.HP
+}
+
+// Attack returns a random number for attack,
+// based on the character attack field
+func (h *Hero) Attack() int {
+	res, err := h.dice.RollCombat(h.attack)
+	if err != nil {
+		log.Fatalf("%s\n", err.Error())
+	}
+
+	return res.Attack
+}
+
+func (h *Hero) Defend() int {
+	res, err := h.dice.RollCombat(h.defend)
+	if err != nil {
+		log.Fatalf("%s\n", err.Error())
+	}
+
+	return res.GoodDefend
 }
 
 func (h *Hero) Glyph() string {
@@ -52,26 +94,29 @@ func NewDefault(hc HeroClass) *Hero {
 	case Barbarian:
 		return &Hero{
 			Typ:    Barbarian,
-			hp:     8,
+			HP:     8,
 			mp:     2,
 			attack: 3,
 			defend: 2,
+			dice:   dice.New(),
 		}
 	case Dwarf:
 		return &Hero{
 			Typ:    Dwarf,
-			hp:     7,
+			HP:     7,
 			mp:     3,
 			attack: 2,
 			defend: 2,
+			dice:   dice.New(),
 		}
 	default:
 		return &Hero{
 			Typ:    Barbarian,
-			hp:     8,
+			HP:     8,
 			mp:     2,
 			attack: 3,
 			defend: 2,
+			dice:   dice.New(),
 		}
 	}
 }
@@ -85,7 +130,7 @@ func New(opt ...HeroOption) *Hero {
 	}
 	// TODO: create range validation
 	if hero.defend <= 0 || hero.attack <= 0 ||
-		hero.hp <= 0 {
+		hero.HP <= 0 {
 		// TODO: assume typ will be valid for now
 		return NewDefault(hero.Typ)
 	}

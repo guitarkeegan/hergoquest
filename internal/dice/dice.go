@@ -8,13 +8,14 @@ import (
 // responsible for returning numbers for 1 or 2 dice
 // rolling the action dice and returning results
 // a struct returning the dice functions?
+// can be called from wherever
 
 type combat int
 
 type InputError struct{}
 
 type CombatResult struct {
-	attack, goodDefend, evilDefend int
+	Attack, GoodDefend, EvilDefend int
 }
 
 func (ie InputError) Error() string {
@@ -68,11 +69,11 @@ func (r *Rollist) RollCombat(numberOfDie int) (*CombatResult, error) {
 	for range numberOfDie {
 		switch r.rollCombatDie() {
 		case attack:
-			cr.attack++
+			cr.Attack++
 		case goodDefend:
-			cr.goodDefend++
+			cr.GoodDefend++
 		case evilDefend:
-			cr.evilDefend++
+			cr.EvilDefend++
 		default:
 			panic("RollCombat: default should never fire\n")
 		}

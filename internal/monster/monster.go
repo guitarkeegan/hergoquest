@@ -1,34 +1,76 @@
 package monster
 
+import (
+	"log"
+
+	"github.com/guitarkeegan/hergoquest/internal/dice"
+)
+
 type MonsterClass int
 
 const (
-	skeleton MonsterClass = iota
-	zombie
+	Skeleton MonsterClass = iota
+	Zombie
 )
 
 type Monster struct {
-	Typ    MonsterClass
-	hp     int
-	mp     int
-	attack int
-	defend int
+	Typ           MonsterClass
+	HP            int
+	MP            int
+	attack        int
+	defend        int
+	hasMoved      bool
+	hasAttacked   bool
+	movementQuota int
+	dice          *dice.Rollist
+}
+
+// TODO: combine with hero's funcs so they can't differ
+func (m *Monster) IsDead() bool {
+	return m.HP <= 0
+}
+
+func (m *Monster) TakeDamage(damage int) {
+	m.HP = max(m.HP-damage, 0)
+}
+
+func (m *Monster) AvailableMovement() int {
+	return m.movementQuota
+}
+
+func (m *Monster) RemainingHP() int {
+	return m.HP
+}
+
+func (m *Monster) Glyph() string {
+	switch m.Typ {
+	case Skeleton:
+		return "sk"
+	case Zombie:
+		return "zb"
+	default:
+		return "??"
+	}
 }
 
 var monsters = map[MonsterClass]Monster{
-	skeleton: {
-		Typ:    skeleton,
-		hp:     1,
-		mp:     0,
-		attack: 2,
-		defend: 2,
+	Skeleton: {
+		Typ:           Skeleton,
+		HP:            1,
+		MP:            0,
+		attack:        2,
+		defend:        2,
+		movementQuota: 6,
+		dice:          dice.New(),
 	},
-	zombie: {
-		Typ:    zombie,
-		hp:     1,
-		mp:     0,
-		attack: 2,
-		defend: 3,
+	Zombie: {
+		Typ:           Zombie,
+		HP:            1,
+		MP:            0,
+		attack:        2,
+		defend:        3,
+		movementQuota: 5,
+		dice:          dice.New(),
 	},
 }
 
@@ -40,3 +82,32 @@ func NewDefaultMonster(mc MonsterClass) *Monster {
 
 	return &m
 }
+
+func (m *Monster) Attack() int {
+	res, err := m.dice.RollCombat(m.attack)
+	if err != nil {
+		log.Fatalf("%s\n", err.Error())
+	}
+
+	return res.Attack
+}
+
+func (m *Monster) Defend() int {
+	res, err := m.dice.RollCombat(m.defend)
+	if err != nil {
+		log.Fatalf("%s\n", err.Error())
+	}
+
+	return res.EvilDefend
+}
+
+//| Monster | Movement |
+//|---|---:|
+//| **Goblin** | **10** |
+//| **Orc** | **8** |
+//| **Dread Warrior** | **7** |
+//| **Abomination** | **6** |
+//| **Skeleton** | **6** |
+//| **Gargoyle** | **6** |
+//| **Zombie** | **5** |
+//| **Mummy** | **4** |

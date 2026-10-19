@@ -1,6 +1,10 @@
 package board
 
-import "errors"
+import (
+	"errors"
+	"github.com/guitarkeegan/hergoquest/internal/log"
+	"math"
+)
 
 type Coord struct {
 	Row, Col int
@@ -34,6 +38,17 @@ func (p Piece) AvailableMovement() int {
 type Occupier interface {
 	Glyph() string
 	AvailableMovement() int
+}
+
+type Combatant interface {
+	Occupier
+	Attack() int
+	Defend() int
+	IsDead() bool
+	TakeDamage(int)
+	RemainingHP() int
+	// TODO: will need to think on this one
+	// Spell() string
 }
 
 type Board struct {
@@ -78,6 +93,10 @@ func (b *Board) Remove(coord Coord) {
 
 func (b *Board) Place(o Occupier, coord Coord) {
 	b.cells[coord.Row][coord.Col] = o
+}
+
+func (b *Board) PlaceCombatant(c Combatant, coord Coord) {
+	b.cells[coord.Row][coord.Col] = c
 }
 
 func (b *Board) Get(coord Coord) Occupier {
@@ -150,6 +169,33 @@ func isValidPath[T any](matrix [][]T, start, end [2]int, movesRemaining int) boo
 func (b *Board) isValidMove(from, to Coord) bool {
 	occupant := b.Get(from)
 	return isValidPath(b.cells, [2]int{from.Row, from.Col}, [2]int{to.Row, to.Col}, occupant.AvailableMovement())
+}
+
+func (b *Board) Attack(attackCoord, defendCoord Coord) {
+
+	// if close enough
+	isAdjacent := math.Abs(float64(attackCoord.Row)-float64(defendCoord.Row)) <= 1 &&
+		math.Abs(float64(attackCoord.Col)-float64(defendCoord.Col)) <= 1
+
+	if !isAdjacent {
+		announce.Log("no enemy in range")
+		return
+	}
+
+	a := b.Get(attackCoord).(Combatant)
+	d := b.Get(defendCoord).(Combatant)
+
+	attack := a.Attack()
+	defend := d.Defend()
+	difference := attack - defend
+
+	if difference > 0 {
+		d.TakeDamage(difference)
+		announce.Log("took damage, %d remaining.", d.RemainingHP())
+		return
+	}
+	announce.Log("no damage, %d remaining.", d.RemainingHP())
+
 }
 
 // Move reports whether the occupant at from could reach to, and moves it if so.
