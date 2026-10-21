@@ -2,9 +2,14 @@ package board
 
 import (
 	"errors"
+	"github.com/guitarkeegan/hergoquest/internal/dice"
 	"github.com/guitarkeegan/hergoquest/internal/log"
 	"math"
 )
+
+// TODO: should probably live here
+// so heros only need to know the number of dice
+// for a given action. 2 for move, 3 for attact etc.
 
 type Coord struct {
 	Row, Col int
@@ -51,8 +56,47 @@ type Combatant interface {
 	// Spell() string
 }
 
+type turnType string
+
+const (
+	heroTurn    turnType = "hero"
+	monsterTurn turnType = "monster"
+)
+
 type Board struct {
 	cells [][]Occupier
+	// INFO: where to store the state?
+	heros    []Combatant
+	monsters []Combatant
+	turn     turnType
+	dice     *dice.Rollist
+}
+
+// turn is derived from the heros available movements
+// INFO: what if a hero decided not to move?
+// we must make them exhast their movemnts in that case.
+func (b *Board) Turn() turnType {
+	for _, h := range b.heros {
+		if h.AvailableMovement() > 0 {
+			return heroTurn
+		}
+	}
+	return monsterTurn
+}
+
+func (b *Board) startMonstersTurn() {}
+
+func (b *Board) startHerosTurn() {
+	// for _, h := range b.heros {
+	// TODO: reset available movements
+	// }
+}
+
+func (b *Board) endTurn() {
+	currentTurn := b.Turn()
+	if currentTurn == heroTurn {
+		// set monsters turn
+	}
 }
 
 var (
@@ -68,7 +112,10 @@ func New(rows, cols int) *Board {
 			cells[i][j] = vacant
 		}
 	}
-	return &Board{cells: cells}
+	return &Board{
+		cells: cells,
+		dice:  dice.New(),
+	}
 }
 
 func (b *Board) Rows() int {
@@ -182,12 +229,35 @@ func (b *Board) Attack(attackCoord, defendCoord Coord) {
 		return
 	}
 
-	a := b.Get(attackCoord).(Combatant)
-	d := b.Get(defendCoord).(Combatant)
+	a, ok := b.Get(attackCoord).(Combatant)
+	if !ok {
+		//TODO: handle non combatant
+		return
+	}
 
-	attack := a.Attack()
-	defend := d.Defend()
-	difference := attack - defend
+	d, ok := b.Get(defendCoord).(Combatant)
+	if !ok {
+		//TODO: handle non combatant
+		return
+	}
+
+	attack, err := b.dice.RollCombat(a.Attack())
+	if err != nil {
+		panic("handle roll combat err")
+	}
+
+	defend, err := b.dice.RollCombat(d.Defend())
+	if err != nil {
+		panic("handle roll combat err")
+	}
+
+	// hero or monster, derive from turn
+	var difference int
+	if b.turn == heroTurn {
+		difference = attack.Attack - defend.EvilDefend
+	} else {
+		difference = attack.Attack - defend.GoodDefend
+	}
 
 	if difference > 0 {
 		d.TakeDamage(difference)

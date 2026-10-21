@@ -83,22 +83,14 @@ func NewDefaultMonster(mc MonsterClass) *Monster {
 	return &m
 }
 
+// returns the attack combat dice amount
 func (m *Monster) Attack() int {
-	res, err := m.dice.RollCombat(m.attack)
-	if err != nil {
-		log.Fatalf("%s\n", err.Error())
-	}
-
-	return res.Attack
+	return m.attack
 }
 
+// returns the defend dice amount
 func (m *Monster) Defend() int {
-	res, err := m.dice.RollCombat(m.defend)
-	if err != nil {
-		log.Fatalf("%s\n", err.Error())
-	}
-
-	return res.EvilDefend
+	return m.defend
 }
 
 //| Monster | Movement |

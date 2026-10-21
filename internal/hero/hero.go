@@ -41,24 +41,13 @@ func (h *Hero) RemainingHP() int {
 	return h.HP
 }
 
-// Attack returns a random number for attack,
-// based on the character attack field
+// just return the number of combat dice to use
 func (h *Hero) Attack() int {
-	res, err := h.dice.RollCombat(h.attack)
-	if err != nil {
-		log.Fatalf("%s\n", err.Error())
-	}
-
-	return res.Attack
+	return h.attack
 }
 
 func (h *Hero) Defend() int {
-	res, err := h.dice.RollCombat(h.defend)
-	if err != nil {
-		log.Fatalf("%s\n", err.Error())
-	}
-
-	return res.GoodDefend
+	return h.defend
 }
 
 func (h *Hero) Glyph() string {

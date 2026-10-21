@@ -15,6 +15,9 @@ import (
 // moving and/or attacking, until someone wins
 // battle will be automated
 
+// turn logic
+// hero turn vs monster turn
+
 func main() {
 	board := b.New(5, 6)
 	barbarian := h.NewDefault(h.Barbarian)
