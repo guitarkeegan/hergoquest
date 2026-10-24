@@ -9,22 +9,16 @@ import (
 	v "github.com/guitarkeegan/hergoquest/internal/view"
 )
 
-// A mini game.
-// one hero, with one randomly placed monster
-// hero moves first, and the hero and monster take turns
-// moving and/or attacking, until someone wins
-// battle will be automated
-
 // turn logic
 // hero turn vs monster turn
 
 func main() {
 	board := b.New(5, 6)
 	barbarian := h.NewDefault(h.Barbarian)
-	board.Place(barbarian, b.Coord{Row: 0, Col: 0})
+	board.PlaceHero(barbarian, b.Coord{Row: 0, Col: 0})
 	// place the monster
 	zombie := m.NewDefaultMonster(m.Zombie)
-	board.Place(zombie, b.Coord{Row: 3, Col: 2})
+	board.PlaceMonster(zombie, b.Coord{Row: 3, Col: 2})
 
 	v.Render(board)
 	barbarian.AddMovementQuota(4)

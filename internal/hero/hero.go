@@ -1,8 +1,6 @@
 package hero
 
 import (
-	"log"
-
 	"github.com/guitarkeegan/hergoquest/internal/dice"
 )
 
@@ -16,6 +14,25 @@ type Hero struct {
 	hasAttacked   bool
 	movementQuota int
 	dice          *dice.Rollist
+}
+
+// gets or sets the hero's movement.
+// only the first argument is used
+func (h *Hero) Moved(moved ...bool) bool {
+	if len(moved) == 0 {
+		return h.hasMoved
+	}
+	h.hasMoved = moved[0]
+	return h.hasMoved
+}
+
+// gets or sets the heros attack status for this turn
+func (h *Hero) Acted(attacked ...bool) bool {
+	if len(attacked) == 0 {
+		return h.hasAttacked
+	}
+	h.hasAttacked = attacked[0]
+	return h.hasAttacked
 }
 
 func (h *Hero) AvailableMovement() int {

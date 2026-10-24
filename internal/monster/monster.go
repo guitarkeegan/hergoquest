@@ -1,8 +1,6 @@
 package monster
 
 import (
-	"log"
-
 	"github.com/guitarkeegan/hergoquest/internal/dice"
 )
 
@@ -23,6 +21,25 @@ type Monster struct {
 	hasAttacked   bool
 	movementQuota int
 	dice          *dice.Rollist
+}
+
+// gets or sets the monsters's movement.
+// only the first argument is used
+func (m *Monster) Moved(moved ...bool) bool {
+	if len(moved) == 0 {
+		return m.hasMoved
+	}
+	m.hasMoved = moved[0]
+	return m.hasMoved
+}
+
+// gets or sets the Monsters attack status for this turn
+func (m *Monster) Acted(attacked ...bool) bool {
+	if len(attacked) == 0 {
+		return m.hasAttacked
+	}
+	m.hasAttacked = attacked[0]
+	return m.hasAttacked
 }
 
 // TODO: combine with hero's funcs so they can't differ

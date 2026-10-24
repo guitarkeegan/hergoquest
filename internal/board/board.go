@@ -52,6 +52,9 @@ type Combatant interface {
 	IsDead() bool
 	TakeDamage(int)
 	RemainingHP() int
+	Moved(...bool) bool
+	// attacked, searched for traps, treasure, cast a spell
+	Acted(...bool) bool
 	// TODO: will need to think on this one
 	// Spell() string
 }
@@ -66,10 +69,11 @@ const (
 type Board struct {
 	cells [][]Occupier
 	// INFO: where to store the state?
-	heros    []Combatant
-	monsters []Combatant
-	turn     turnType
-	dice     *dice.Rollist
+	heros              []Combatant
+	monsters           []Combatant
+	combatantPositions map[Combatant]Coord
+	turn               turnType
+	dice               *dice.Rollist
 }
 
 // turn is derived from the heros available movements
@@ -100,10 +104,13 @@ func (b *Board) endTurn() {
 }
 
 var (
-	ErrOutOfBounds = errors.New("coord is out of bounds")
-	ErrNoOccupant  = errors.New("no occupant to move")
+	ErrOutOfBounds       = errors.New("coord is out of bounds")
+	ErrNoOccupant        = errors.New("no occupant to move")
+	ErrNonCombatant      = errors.New("not a combatant interface")
+	ErrCombatantNotFound = errors.New("combatant not found")
 )
 
+// maybe add a config for the start of games...
 func New(rows, cols int) *Board {
 	cells := make([][]Occupier, rows)
 	for i := range cells {
@@ -113,8 +120,11 @@ func New(rows, cols int) *Board {
 		}
 	}
 	return &Board{
-		cells: cells,
-		dice:  dice.New(),
+		cells:              cells,
+		heros:              []Combatant{},
+		monsters:           []Combatant{},
+		combatantPositions: make(map[Combatant]Coord),
+		dice:               dice.New(),
 	}
 }
 
@@ -138,6 +148,18 @@ func (b *Board) Remove(coord Coord) {
 	b.cells[coord.Row][coord.Col] = vacant
 }
 
+func (b *Board) PlaceHero(c Combatant, coord Coord) {
+	b.cells[coord.Row][coord.Col] = c
+	b.heros = append(b.heros, c)
+	b.combatantPositions[c] = coord
+}
+
+func (b *Board) PlaceMonster(c Combatant, coord Coord) {
+	b.cells[coord.Row][coord.Col] = c
+	b.monsters = append(b.monsters, c)
+	b.combatantPositions[c] = coord
+}
+
 func (b *Board) Place(o Occupier, coord Coord) {
 	b.cells[coord.Row][coord.Col] = o
 }
@@ -146,8 +168,18 @@ func (b *Board) PlaceCombatant(c Combatant, coord Coord) {
 	b.cells[coord.Row][coord.Col] = c
 }
 
+// returns the Occupier given a coord, to get the coord
+// of a combatant, use GetCombatant
 func (b *Board) Get(coord Coord) Occupier {
 	return b.cells[coord.Row][coord.Col]
+}
+
+func (b *Board) GetCombatant(c Combatant) (Coord, error) {
+	if coord, ok := b.combatantPositions[c]; ok {
+		return coord, nil
+	}
+	// TODO: add to errors
+	return Coord{}, ErrCombatantNotFound
 }
 
 // move to algos pkg
@@ -246,6 +278,9 @@ func (b *Board) Attack(attackCoord, defendCoord Coord) {
 		panic("handle roll combat err")
 	}
 
+	// updated attackers turn
+	a.Acted(true)
+
 	defend, err := b.dice.RollCombat(d.Defend())
 	if err != nil {
 		panic("handle roll combat err")
@@ -262,9 +297,82 @@ func (b *Board) Attack(attackCoord, defendCoord Coord) {
 	if difference > 0 {
 		d.TakeDamage(difference)
 		announce.Log("took damage, %d remaining.", d.RemainingHP())
-		return
+	} else {
+		announce.Log("no damage, %d remaining.", d.RemainingHP())
 	}
-	announce.Log("no damage, %d remaining.", d.RemainingHP())
+
+	// TODO:  always call clean up?
+	b.update()
+
+}
+
+// return a list of living heros/monsters
+func filterOutFallen[T comparable](fallen T, pile []T) []T {
+	out := make([]T, 0, len(pile))
+	for _, body := range pile {
+		if fallen != body {
+			out = append(out, body)
+		}
+	}
+	return out
+}
+
+// can be generalized, but essentially clean up the
+// fallen combatants
+// TODO: add turn check
+func (b *Board) update() {
+	announce.Log("updating...")
+	for _, h := range b.heros {
+		if h.IsDead() {
+			if coord, err := b.GetCombatant(h); err == nil {
+				b.Remove(coord)
+				delete(b.combatantPositions, h)
+				b.heros = filterOutFallen(h, b.heros)
+			}
+		}
+	}
+	for _, m := range b.monsters {
+		if m.IsDead() {
+			if coord, err := b.GetCombatant(m); err == nil {
+				b.Remove(coord)
+				delete(b.combatantPositions, m)
+				b.monsters = filterOutFallen(m, b.monsters)
+			}
+		}
+	}
+	announce.Log("heros remaining: %d", len(b.heros))
+	announce.Log("monsters remaining: %d", len(b.monsters))
+
+	switch b.turn {
+	case heroTurn:
+		var allDone bool
+		for _, h := range b.heros {
+			if h.Acted() && h.Moved() {
+				allDone = true
+			} else {
+				allDone = false
+				break
+			}
+		}
+		if allDone {
+			// TODO: restart with the next turn
+			b.turn = monsterTurn
+		}
+	case monsterTurn:
+		var allDone bool
+		for _, m := range b.monsters {
+			if m.Acted() && m.Moved() {
+				allDone = true
+			} else {
+				allDone = false
+				break
+			}
+		}
+		if allDone {
+			// TODO: restart with the next turn
+			b.turn = heroTurn
+		}
+	}
 
 }
 
@@ -282,6 +390,12 @@ func (b *Board) Move(from, to Coord) (bool, error) {
 	if !b.isValidMove(from, to) {
 		return false, nil
 	}
+	oc, ok := occupant.(Combatant)
+	if !ok {
+		return false, ErrNonCombatant
+	}
+	b.combatantPositions[oc] = to
+	oc.Moved(true)
 	b.Remove(from)
 	b.Place(occupant, to)
 	return true, nil
