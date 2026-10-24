@@ -16,6 +16,10 @@ type Hero struct {
 	dice          *dice.Rollist
 }
 
+func (h *Hero) IsVisible() bool {
+	return true
+}
+
 // gets or sets the hero's movement.
 // only the first argument is used
 func (h *Hero) Moved(moved ...bool) bool {

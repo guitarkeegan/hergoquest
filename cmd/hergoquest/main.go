@@ -9,8 +9,7 @@ import (
 	v "github.com/guitarkeegan/hergoquest/internal/view"
 )
 
-// turn logic
-// hero turn vs monster turn
+// walls, doors, rooms, seperate view/board state
 
 func main() {
 	board := b.New(5, 6)

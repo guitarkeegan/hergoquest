@@ -21,6 +21,11 @@ type Monster struct {
 	hasAttacked   bool
 	movementQuota int
 	dice          *dice.Rollist
+	isVisible     bool
+}
+
+func (m *Monster) IsVisible() bool {
+	return m.isVisible
 }
 
 // gets or sets the monsters's movement.

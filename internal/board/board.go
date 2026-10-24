@@ -7,9 +7,12 @@ import (
 	"math"
 )
 
-// TODO: should probably live here
-// so heros only need to know the number of dice
-// for a given action. 2 for move, 3 for attact etc.
+var DIRECTIONS = [][2]int{
+	{-1, 0},
+	{0, 1},
+	{1, 0},
+	{0, -1},
+}
 
 type Coord struct {
 	Row, Col int
@@ -50,6 +53,9 @@ type Combatant interface {
 	Attack() int
 	Defend() int
 	IsDead() bool
+	// this is really for monsters, might need a
+	// better way to handle this
+	IsVisible() bool
 	TakeDamage(int)
 	RemainingHP() int
 	Moved(...bool) bool
@@ -69,11 +75,35 @@ const (
 type Board struct {
 	cells [][]Occupier
 	// INFO: where to store the state?
+	walls              map[edge]bool
 	heros              []Combatant
 	monsters           []Combatant
 	combatantPositions map[Combatant]Coord
 	turn               turnType
 	dice               *dice.Rollist
+}
+
+func less(a, b Coord) bool {
+	if a.Row != b.Row {
+		return a.Row < b.Row
+	}
+	return a.Col < b.Col
+}
+
+// edge is the border shared by two adjacent cells, a always being the lesser coord
+type edge struct {
+	a, b Coord
+}
+
+func newEdge(c1, c2 Coord) edge {
+	if less(c2, c1) {
+		c1, c2 = c2, c1
+	}
+	return edge{a: c1, b: c2}
+}
+
+func (b *Board) IsWall(c1, c2 Coord) bool {
+	return b.walls[newEdge(c1, c2)]
 }
 
 // turn is derived from the heros available movements
@@ -88,27 +118,38 @@ func (b *Board) Turn() turnType {
 	return monsterTurn
 }
 
-func (b *Board) startMonstersTurn() {}
-
-func (b *Board) startHerosTurn() {
-	// for _, h := range b.heros {
-	// TODO: reset available movements
-	// }
-}
-
-func (b *Board) endTurn() {
-	currentTurn := b.Turn()
-	if currentTurn == heroTurn {
-		// set monsters turn
-	}
-}
-
 var (
 	ErrOutOfBounds       = errors.New("coord is out of bounds")
 	ErrNoOccupant        = errors.New("no occupant to move")
 	ErrNonCombatant      = errors.New("not a combatant interface")
 	ErrCombatantNotFound = errors.New("combatant not found")
 )
+
+func (b *Board) constructWall(c1, c2 Coord) {
+	b.walls[newEdge(c1, c2)] = true
+}
+
+// TODO: maybe hand a room over, and get back the walls?
+func (b *Board) constructOuterWalls(cells [][]Occupier) {
+
+	// visit each cell
+	// check all 4 directions around it
+	// if out of bounds, add to the map
+	for i := range cells {
+		for j := range cells[i] {
+			for _, dir := range DIRECTIONS {
+				nextRow, nextCol := dir[0]+i, dir[1]+j
+				if nextRow < 0 || nextCol < 0 {
+					// make left or top wall
+					b.constructWall(Coord{Row: nextRow, Col: nextCol}, Coord{Row: i, Col: j})
+				} else if nextRow >= len(cells) || nextCol >= len(cells[i]) {
+					// make right or bottom wall
+					b.constructWall(Coord{Row: i, Col: j}, Coord{Row: nextRow, Col: nextCol})
+				}
+			}
+		}
+	}
+}
 
 // maybe add a config for the start of games...
 func New(rows, cols int) *Board {
@@ -119,13 +160,18 @@ func New(rows, cols int) *Board {
 			cells[i][j] = vacant
 		}
 	}
-	return &Board{
+	board := &Board{
 		cells:              cells,
 		heros:              []Combatant{},
 		monsters:           []Combatant{},
 		combatantPositions: make(map[Combatant]Coord),
+		turn:               heroTurn,
 		dice:               dice.New(),
+		walls:              make(map[edge]bool),
 	}
+	board.constructOuterWalls(cells)
+	announce.Log("walls length: %d", len(board.walls))
+	return board
 }
 
 func (b *Board) Rows() int {
@@ -197,13 +243,6 @@ func isValidPath[T any](matrix [][]T, start, end [2]int, movesRemaining int) boo
 		{pos: start, moves: 0},
 	}
 
-	DIRECTIONS := [][2]int{
-		{-1, 0},
-		{0, 1},
-		{1, 0},
-		{0, -1},
-	}
-
 	seen := make(map[[2]int]bool)
 	seen[start] = true
 
@@ -253,6 +292,7 @@ func (b *Board) isValidMove(from, to Coord) bool {
 func (b *Board) Attack(attackCoord, defendCoord Coord) {
 
 	// if close enough
+	// WARN: allows for diagonal attack
 	isAdjacent := math.Abs(float64(attackCoord.Row)-float64(defendCoord.Row)) <= 1 &&
 		math.Abs(float64(attackCoord.Col)-float64(defendCoord.Col)) <= 1
 
@@ -307,6 +347,7 @@ func (b *Board) Attack(attackCoord, defendCoord Coord) {
 }
 
 // return a list of living heros/monsters
+// WARN: might be better just to mark fallen as isDead()
 func filterOutFallen[T comparable](fallen T, pile []T) []T {
 	out := make([]T, 0, len(pile))
 	for _, body := range pile {
@@ -373,6 +414,8 @@ func (b *Board) update() {
 			b.turn = heroTurn
 		}
 	}
+
+	announce.Log("Turn: %s", b.turn)
 
 }
 
