@@ -1,46 +1,37 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
 
-	b "github.com/guitarkeegan/hergoquest/internal/board"
-	h "github.com/guitarkeegan/hergoquest/internal/hero"
-	m "github.com/guitarkeegan/hergoquest/internal/monster"
-	v "github.com/guitarkeegan/hergoquest/internal/view"
+	"github.com/daved/clic"
+	"github.com/guitarkeegan/hergoquest/internal/tui"
 )
 
-// walls, doors, rooms, seperate view/board state
+// play game in one room
+// new game only
+// choose character
+// player moves first
+// can attack, move, be still
+// monster will move to attack on each turn
+// when monster is killed, the game is over
+
+func runCLI(ctx context.Context) error {
+	tui.Run()
+	return nil
+}
 
 func main() {
-	board := b.New(5, 6)
-	barbarian := h.NewDefault(h.Barbarian)
-	board.PlaceHero(barbarian, b.Coord{Row: 0, Col: 0})
-	// place the monster
-	zombie := m.NewDefaultMonster(m.Zombie)
-	board.PlaceMonster(zombie, b.Coord{Row: 3, Col: 2})
 
-	v.Render(board)
-	barbarian.AddMovementQuota(4)
-	moved, err := board.Move(b.Coord{Row: 0, Col: 0}, b.Coord{Row: 2, Col: 2})
+	root := clic.NewFromFunc(runCLI, "hergo")
 
-	// hero attacks
-	board.Attack(b.Coord{
-		Row: 2,
-		Col: 2,
-	},
-		b.Coord{
-			Row: 3,
-			Col: 2,
-		},
-	)
-
+	cmd, err := root.Parse(os.Args[1:])
 	if err != nil {
-		fmt.Println("move failed:", err)
-		return
+		fmt.Println(err)
 	}
-	if !moved {
-		fmt.Println("not enough movement to reach destination")
-	}
-	v.Render(board)
+
+	cmd.Handle(context.Background())
+	cmd.Usage()
 
 }

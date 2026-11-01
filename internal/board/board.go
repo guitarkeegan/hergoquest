@@ -2,9 +2,11 @@ package board
 
 import (
 	"errors"
+	"math"
+	"strings"
+
 	"github.com/guitarkeegan/hergoquest/internal/dice"
 	"github.com/guitarkeegan/hergoquest/internal/log"
-	"math"
 )
 
 var DIRECTIONS = [][2]int{
@@ -65,22 +67,41 @@ type Combatant interface {
 	// Spell() string
 }
 
-type turnType string
+type GameState string
 
 const (
-	heroTurn    turnType = "hero"
-	monsterTurn turnType = "monster"
+	ChooseHeroes GameState = "chooseHeroes"
+	HeroTurn     GameState = "hero"
+	MonsterTurn  GameState = "monster"
 )
 
 type Board struct {
-	cells [][]Occupier
-	// INFO: where to store the state?
+	cells              [][]Occupier
 	walls              map[edge]bool
-	heros              []Combatant
+	heroes             []Combatant
 	monsters           []Combatant
 	combatantPositions map[Combatant]Coord
-	turn               turnType
+	gameState          GameState
 	dice               *dice.Rollist
+}
+
+func (b *Board) GameState() GameState {
+	return b.gameState
+}
+
+func (brd *Board) View() string {
+	b := strings.Builder{}
+	for i := range brd.Rows() {
+		for j := range brd.Cols() {
+			b.WriteString(brd.Get(Coord{Row: i, Col: j}).Glyph())
+			b.WriteString(" ")
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("\n")
+
+	return b.String()
 }
 
 func less(a, b Coord) bool {
@@ -90,16 +111,43 @@ func less(a, b Coord) bool {
 	return a.Col < b.Col
 }
 
+type Door int
+
+const (
+	none Door = iota
+	closed
+	open
+)
+
 // edge is the border shared by two adjacent cells, a always being the lesser coord
 type edge struct {
 	a, b Coord
+	door Door
 }
 
-func newEdge(c1, c2 Coord) edge {
+func (e *edge) Door() Door {
+	return e.door
+}
+
+type edgeOption func(*edge)
+
+func DoorOption(d Door) edgeOption {
+	return func(e *edge) {
+		e.door = d
+	}
+}
+
+// Edges must be created with newEdge so that
+// the order of the coordinances are always sorted
+func newEdge(c1, c2 Coord, opt ...edgeOption) edge {
 	if less(c2, c1) {
 		c1, c2 = c2, c1
 	}
-	return edge{a: c1, b: c2}
+	e := edge{a: c1, b: c2}
+	for _, f := range opt {
+		f(&e)
+	}
+	return e
 }
 
 func (b *Board) IsWall(c1, c2 Coord) bool {
@@ -109,13 +157,13 @@ func (b *Board) IsWall(c1, c2 Coord) bool {
 // turn is derived from the heros available movements
 // INFO: what if a hero decided not to move?
 // we must make them exhast their movemnts in that case.
-func (b *Board) Turn() turnType {
-	for _, h := range b.heros {
+func (b *Board) Turn() GameState {
+	for _, h := range b.heroes {
 		if h.AvailableMovement() > 0 {
-			return heroTurn
+			return HeroTurn
 		}
 	}
-	return monsterTurn
+	return MonsterTurn
 }
 
 var (
@@ -151,8 +199,23 @@ func (b *Board) constructOuterWalls(cells [][]Occupier) {
 	}
 }
 
-// maybe add a config for the start of games...
-func New(rows, cols int) *Board {
+type BoardOption func(*Board)
+
+// Doors can be open or closed.
+// Will create a wall if it doesn't exist.
+// Will fail silently if door is none.
+func AddDoors(doors []edge) BoardOption {
+	return func(b *Board) {
+		for _, door := range doors {
+			if door.door != none {
+				b.walls[door] = true
+			}
+		}
+	}
+}
+
+// TODO: maybe add a config for the start of games...
+func New(rows, cols int, opt ...BoardOption) *Board {
 	cells := make([][]Occupier, rows)
 	for i := range cells {
 		cells[i] = make([]Occupier, cols)
@@ -162,15 +225,20 @@ func New(rows, cols int) *Board {
 	}
 	board := &Board{
 		cells:              cells,
-		heros:              []Combatant{},
+		heroes:             []Combatant{},
 		monsters:           []Combatant{},
 		combatantPositions: make(map[Combatant]Coord),
-		turn:               heroTurn,
+		gameState:          ChooseHeroes,
 		dice:               dice.New(),
 		walls:              make(map[edge]bool),
 	}
 	board.constructOuterWalls(cells)
-	announce.Log("walls length: %d", len(board.walls))
+	for _, f := range opt {
+		f(board)
+	}
+	// TODO: add rooms
+	// TODO: add doors
+	// TODO: furnature
 	return board
 }
 
@@ -194,10 +262,19 @@ func (b *Board) Remove(coord Coord) {
 	b.cells[coord.Row][coord.Col] = vacant
 }
 
-func (b *Board) PlaceHero(c Combatant, coord Coord) {
+// TODO: changes this to AddHeros
+func (b *Board) AddHero(c Combatant) {
+	// TODO: how to determine plaement
+	// maybe a check here if the first place is taken, etc.
+	b.placeHero(c, Coord{Row: 0, Col: 0})
+}
+
+func (b *Board) placeHero(c Combatant, coord Coord) {
 	b.cells[coord.Row][coord.Col] = c
-	b.heros = append(b.heros, c)
+	b.heroes = append(b.heroes, c)
 	b.combatantPositions[c] = coord
+	// INFO: toriaizu
+	b.gameState = HeroTurn
 }
 
 func (b *Board) PlaceMonster(c Combatant, coord Coord) {
@@ -328,7 +405,7 @@ func (b *Board) Attack(attackCoord, defendCoord Coord) {
 
 	// hero or monster, derive from turn
 	var difference int
-	if b.turn == heroTurn {
+	if b.gameState == HeroTurn {
 		difference = attack.Attack - defend.EvilDefend
 	} else {
 		difference = attack.Attack - defend.GoodDefend
@@ -363,12 +440,12 @@ func filterOutFallen[T comparable](fallen T, pile []T) []T {
 // TODO: add turn check
 func (b *Board) update() {
 	announce.Log("updating...")
-	for _, h := range b.heros {
+	for _, h := range b.heroes {
 		if h.IsDead() {
 			if coord, err := b.GetCombatant(h); err == nil {
 				b.Remove(coord)
 				delete(b.combatantPositions, h)
-				b.heros = filterOutFallen(h, b.heros)
+				b.heroes = filterOutFallen(h, b.heroes)
 			}
 		}
 	}
@@ -381,13 +458,13 @@ func (b *Board) update() {
 			}
 		}
 	}
-	announce.Log("heros remaining: %d", len(b.heros))
+	announce.Log("heros remaining: %d", len(b.heroes))
 	announce.Log("monsters remaining: %d", len(b.monsters))
 
-	switch b.turn {
-	case heroTurn:
+	switch b.gameState {
+	case HeroTurn:
 		var allDone bool
-		for _, h := range b.heros {
+		for _, h := range b.heroes {
 			if h.Acted() && h.Moved() {
 				allDone = true
 			} else {
@@ -397,9 +474,9 @@ func (b *Board) update() {
 		}
 		if allDone {
 			// TODO: restart with the next turn
-			b.turn = monsterTurn
+			b.gameState = MonsterTurn
 		}
-	case monsterTurn:
+	case MonsterTurn:
 		var allDone bool
 		for _, m := range b.monsters {
 			if m.Acted() && m.Moved() {
@@ -411,11 +488,11 @@ func (b *Board) update() {
 		}
 		if allDone {
 			// TODO: restart with the next turn
-			b.turn = heroTurn
+			b.gameState = HeroTurn
 		}
 	}
 
-	announce.Log("Turn: %s", b.turn)
+	announce.Log("Turn: %s", b.gameState)
 
 }
 

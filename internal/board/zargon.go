@@ -73,7 +73,7 @@ func (b *Board) findClosestHero(monster Combatant) Coord {
 	minMoves := math.MaxInt
 	var closest Coord
 
-	for _, hero := range b.heros {
+	for _, hero := range b.heroes {
 		h, err := b.GetCombatant(hero)
 		if err != nil {
 			panic("no heros")
