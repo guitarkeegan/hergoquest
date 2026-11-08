@@ -7,18 +7,21 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 	b "github.com/guitarkeegan/hergoquest/internal/board"
+	"github.com/guitarkeegan/hergoquest/internal/gamepack"
 	"github.com/guitarkeegan/hergoquest/internal/hero"
 )
 
-// seems like i'd import board and store it here
 type model struct {
-	board *b.Board
-	form  *huh.Form
+	board  *b.Board
+	form   *huh.Form
+	width  int
+	height int
 }
 
-// TODO: what to pass in?
+// INFO: could also pass in flags for row, col, options
+// in the future
 func initialModel() model {
-	brd := b.New(5, 6)
+	brd := b.New(5, 6, b.WithGamePack(gamepack.Make()))
 	return model{
 		board: brd,
 		form:  chooseHeroForm(),
@@ -39,6 +42,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		}
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 	}
 
 	form, cmd := m.form.Update(msg)
@@ -46,9 +52,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.form = f
 	}
 	if m.form.State == huh.StateCompleted {
+		// TODO: abstract
 		selectedHero := m.form.Get(fkHero).(hero.HeroClass)
 		h := hero.NewDefault(selectedHero)
 		m.board.AddHero(h)
+		// clear form
+		// or set it to the next one..
+		// m.form = nil
 	}
 
 	return m, cmd
@@ -60,7 +70,8 @@ func (m model) View() tea.View {
 	case b.ChooseHeroes:
 		content = m.form.View()
 	case b.HeroTurn:
-		content = m.board.View()
+		s := m.board.View()
+		content = renderMain(s)
 	case b.MonsterTurn:
 		// TODO:
 	default:

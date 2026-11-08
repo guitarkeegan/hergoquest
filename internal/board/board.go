@@ -90,18 +90,15 @@ func (b *Board) GameState() GameState {
 }
 
 func (brd *Board) View() string {
-	b := strings.Builder{}
+	rows := make([]string, 0, brd.Rows())
 	for i := range brd.Rows() {
+		cells := make([]string, 0, brd.Cols())
 		for j := range brd.Cols() {
-			b.WriteString(brd.Get(Coord{Row: i, Col: j}).Glyph())
-			b.WriteString(" ")
+			cells = append(cells, brd.Get(Coord{Row: i, Col: j}).Glyph())
 		}
-		b.WriteString("\n")
+		rows = append(rows, strings.Join(cells, " "))
 	}
-
-	b.WriteString("\n")
-
-	return b.String()
+	return strings.Join(rows, "\n")
 }
 
 func less(a, b Coord) bool {
@@ -199,21 +196,6 @@ func (b *Board) constructOuterWalls(cells [][]Occupier) {
 	}
 }
 
-type BoardOption func(*Board)
-
-// Doors can be open or closed.
-// Will create a wall if it doesn't exist.
-// Will fail silently if door is none.
-func AddDoors(doors []edge) BoardOption {
-	return func(b *Board) {
-		for _, door := range doors {
-			if door.door != none {
-				b.walls[door] = true
-			}
-		}
-	}
-}
-
 // TODO: maybe add a config for the start of games...
 func New(rows, cols int, opt ...BoardOption) *Board {
 	cells := make([][]Occupier, rows)
@@ -242,10 +224,12 @@ func New(rows, cols int, opt ...BoardOption) *Board {
 	return board
 }
 
+// returns the number of rows on the board
 func (b *Board) Rows() int {
 	return len(b.cells)
 }
 
+// returns the number of cols on the board
 func (b *Board) Cols() int {
 	if len(b.cells) == 0 {
 		return 0
