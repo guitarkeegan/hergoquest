@@ -14,6 +14,10 @@ func renderBoard(board string) string {
 	return s.Render(board)
 }
 
+func renderFooterMenu() string {
+	return "footer"
+}
+
 func renderMain(board string) string {
 	return renderBoard(board)
 }

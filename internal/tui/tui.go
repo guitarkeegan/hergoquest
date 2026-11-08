@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 	b "github.com/guitarkeegan/hergoquest/internal/board"
@@ -12,10 +13,13 @@ import (
 )
 
 type model struct {
-	board  *b.Board
-	form   *huh.Form
-	width  int
-	height int
+	board      *b.Board
+	form       *huh.Form
+	width      int
+	height     int
+	keys       keyMap
+	actionKeys actionKeysMap
+	help       help.Model
 }
 
 // INFO: could also pass in flags for row, col, options
@@ -25,6 +29,7 @@ func initialModel() model {
 	return model{
 		board: brd,
 		form:  chooseHeroForm(),
+		help:  help.New(),
 	}
 }
 
